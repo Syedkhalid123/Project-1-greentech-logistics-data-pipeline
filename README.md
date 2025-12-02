@@ -59,25 +59,31 @@ This project implements a **real-time, event-driven logistics data pipeline**:
 ## 📂 Folder Structure
 
 ```
-GreenTech-Logistics/
-├── airflow/
-│   └── kafka_to_glue_dag.py
+greentech-logistics-data-pipeline/
+│
 ├── kafka/
-│   ├── producer_airflow_trigger.py
-│   └── consumer_etl.py
+│ ├── producer_etl.py
+│ └── consumer_etl.py
+│
+├── airflow/
+│ └── kafka_to_glue_dag.py
+│
 ├── glue/
-│   └── glue_job.py
+│ └── glue_job.py
+│
+├── great_expectations/
+│ └── expectations/validation_rules.json
+│
 ├── snowflake/
-│   ├── storage_integration.sql
-│   ├── stage_curated.sql
-│   ├── stage_rejected.sql
-│   ├── pipe_curated.sql
-│   └── pipe_rejected.sql
-├── s3/
-│   ├── raw/
-│   ├── curated/
-│   └── rejected/
-├── architecture_diagram.png
+│ ├── storage_integration.sql
+│ ├── stage_curated.sql
+│ ├── stage_rejected.sql
+│ ├── pipe_curated.sql
+│ └── pipe_rejected.sql
+│
+├── architecture/
+│ └── architecture_diagram.png
+│
 ├── README.md
 └── requirements.txt
 ```
@@ -120,8 +126,8 @@ GreenTech-Logistics/
 
 ```bash
 pip install kafka-python requests
-export KAFKA_BOOTSTRAP="54.234.242.19:9092"
-export AIRFLOW_API_BASE="http://44.200.93.26:8080/api/v1"
+export KAFKA_BOOTSTRAP="<ec2-Public IPv4 address>"
+export AIRFLOW_API_BASE="http://<airflow-ec2-Public IPv4 address>:8080/api/v1"
 python kafka/producer_airflow_trigger.py
 ```
 
@@ -152,6 +158,4 @@ SELECT * FROM LOGISTICS_REJECTED_TABLE;
 ---
 
 ## 👤 Author
-K Syed Khalid Hameed
-
 **K Syed Khalid Hameed**
