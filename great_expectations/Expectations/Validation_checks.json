@@ -1,0 +1,36 @@
+{
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "truck_id"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "fuel_level",
+        "min_value": 0,
+        "max_value": 100
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "temperature",
+        "min_value": -10,
+        "max_value": 60
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "delivery_status",
+        "value_set": ["in_transit", "delivered", "delayed"]
+      }
+    }
+  ],
+  "meta": {
+    "notes": "Validation rules used inside the Great Expectations block of the AWS Glue job."
+  }
+}
