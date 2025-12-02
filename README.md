@@ -1,67 +1,70 @@
-# Project-1-greentech-logistics-data-pipeline
-Kafka → Airflow → Glue → S3 → Delta Lake → Snowflake (Event Driven Pipeline)
+# 🚚 GreenTech Logistics – Real-Time Data Pipeline
 
-🚀 Project Overview
+**Flow:** Kafka → Airflow → S3 → Glue → Delta Lake → Snowflake
+*Fully Event-Driven, Production-Ready Logistics Data Pipeline*
 
-This project implements a real-time logistics data pipeline that:
+---
 
-Ingests truck telemetry events from a Kafka producer.
+## 🌟 Project Overview
 
-Orchestrates processing using Apache Airflow.
+This project implements a **real-time, event-driven logistics data pipeline**:
 
-Validates data using Great Expectations inside AWS Glue.
+* Produces truck telemetry to Kafka topics (GPS, fuel, temperature, delivery status).
+* Airflow dynamically triggers consumer ETL and Glue jobs **only when new data arrives**.
+* Validates data with Great Expectations inside AWS Glue.
+* Splits data into **curated** and **rejected** datasets in Delta format.
+* Loads validated data into Snowflake tables via Snowpipe.
 
-Stores curated/rejected data in Delta format on S3.
+**Goal:** Scalable, validated, and fully production-ready pipeline.
 
-Loads validated data into Snowflake tables through Snowpipe.
+---
 
-This pipeline ensures real-time, validated, and scalable data processing for logistics operations.
+## 🏗️ Architecture
 
-🏗️ High-Level Architecture
-Kafka Producer (EC2)
+**1. Kafka Producer (EC2)**
 
-Generates truck GPS + sensor events.
+* Produces batches of telemetry messages to topic `first-topic`.
+* Injects simulated anomalies for testing validation.
+* Checks Airflow DAG status before triggering new runs.
 
-Produces messages to Kafka topic logistics-topic.
+**2. Kafka Consumer ETL (Airflow Task)**
 
-Kafka Consumer API (EC2)
+* Reads Kafka messages in short-run batches.
+* Stores raw batches in S3 (`raw/`).
+* Pushes batch metadata to Airflow for downstream processing.
 
-Exposes API /start-consumer.
+**3. Apache Airflow DAG (EC2)**
 
-Sends success response to Airflow once data is received.
+* Event-driven: triggers Glue jobs **only when new raw files exist**.
+* Prevents concurrent Glue runs.
+* Tasks: `consume_kafka` → `detect_new_raw_files` → `trigger_glue`.
 
-Apache Airflow (EC2)
+**4. AWS Glue Job**
 
-Calls consumer API → waits for data → triggers Glue job.
+* Reads raw JSON from S3.
+* Performs **data cleaning & validation** using PySpark.
+* Applies **Great Expectations** data quality checks.
+* Splits into curated (`VALID`) and rejected (`REJECTED`) datasets.
+* Writes outputs in **Delta format** to S3.
 
-Prevents unnecessary Glue executions.
+**5. Snowflake via Snowpipe**
 
-Implements dynamic orchestration (event-driven logic).
+* Auto-ingests curated & rejected Delta data into:
 
-AWS Glue Job
+  * `LOGISTICS_CURATED_TABLE`
+  * `LOGISTICS_REJECTED_TABLE`
 
-Reads raw JSON from S3.
+---
 
-Performs data quality checks using Great Expectations.
+## 📂 Folder Structure
 
-Writes curated + rejected data in Delta format:
-
-s3://bucket/curated/
-s3://bucket/rejected/
-Snowflake Integration via Snowpipe
-
-Auto-ingests both curated and rejected data into:
-
-LOGISTICS_CURATED_TABLE
-LOGISTICS_REJECTED_TABLE
-📂 Project Folder Structure
+```
 GreenTech-Logistics/
-│
 ├── airflow/
 │   └── kafka_to_glue_dag.py
 ├── kafka/
-│   ├── producer.py
-│   └── consumer_api.py
+│   ├── producer_airflow_trigger.py
+│   └── consumer_etl.py
 ├── glue/
 │   └── glue_job.py
 ├── snowflake/
@@ -77,108 +80,78 @@ GreenTech-Logistics/
 ├── architecture_diagram.png
 ├── README.md
 └── requirements.txt
-🔧 Technologies Used
-Layer	Tech
-Real-time ingestion	Kafka (EC2)
-API Trigger	Python + Flask (EC2)
-Orchestration	Apache Airflow
-ETL	AWS Glue + PySpark
-Data Quality	Great Expectations
-Data Format	Delta Lake
-Storage	Amazon S3
-Warehouse	Snowflake + Snowpipe
-🧪 Data Quality Rules (Great Expectations)
+```
 
-NOT NULL checks: truck_id, timestamp, latitude, longitude
+---
 
-Type Validation:
+## 🔧 Technology Stack
 
-latitude & longitude → float
+| Layer               | Technology           |
+| ------------------- | -------------------- |
+| Real-time ingestion | Kafka (EC2)          |
+| Event Trigger/API   | Python + Flask (EC2) |
+| Orchestration       | Apache Airflow       |
+| ETL                 | AWS Glue + PySpark   |
+| Data Quality        | Great Expectations   |
+| Data Format         | Delta Lake           |
+| Storage             | Amazon S3            |
+| Warehouse           | Snowflake + Snowpipe |
 
-speed → float or integer
+---
 
-Value Range Validation:
+## 🧪 Data Quality Rules
 
-latitude between -90 to 90
+* **NOT NULL:** `truck_id`, `timestamp`, `location.lat`, `location.lon`
+* **Type Checks:** `fuel_level` & `temperature` → float
+* **Range Checks:**
 
-longitude between -180 to 180
+  * `fuel_level`: 0 → 100
+  * `temperature`: -10 → 60
+* **Delivery Status:** Must be one of `in_transit`, `delivered`, `delayed`
+* **JSON Schema Validation:** Ensures all required fields exist
 
-speed ≥ 0
+> Invalid records are sent to the **rejected** folder in S3 (`REJECTED`).
 
-JSON Structure Validation:
+---
 
-Fields must match schema: truck_id, location.latitude, location.longitude, speed, timestamp
+## ▶️ How to Run
 
-Records failing these rules → rejected folder.
+### Kafka Producer
 
-🪄 Airflow Dynamic Orchestration
+```bash
+pip install kafka-python requests
+export KAFKA_BOOTSTRAP="54.234.242.19:9092"
+export AIRFLOW_API_BASE="http://44.200.93.26:8080/api/v1"
+python kafka/producer_airflow_trigger.py
+```
 
-DAG calls consumer API: http://ec2-public-ip/start-consumer
+### Airflow DAG
 
-Consumer listens to Kafka.
+* DAG is event-driven; triggers consumer → detects new raw files → triggers Glue job.
+* No fixed schedule; runs **only when new data is available**.
 
-Once a message is received, consumer responds to Airflow.
+### Check Outputs
 
-Airflow waits 5 minutes for more data → triggers Glue job.
+```bash
+# S3 Buckets
+s3://first-project-greentech-logistics-datalake/raw/
+s3://first-project-greentech-logistics-datalake/curated/
+s3://first-project-greentech-logistics-datalake/rejected/
 
-Avoids schedule-based waste; pipeline is fully event-driven.
-
-🧰 Glue Job Workflow
-
-Read raw JSON from S3.
-
-Apply Great Expectations checks.
-
-Split into:
-
-curated_df → valid
-
-rejected_df → invalid
-
-Write both to S3 in Delta format.
-
-Snowpipe automatically ingests them into Snowflake.
-
-❄️ Snowflake Setup
-
-Inside snowflake/ folder:
-
-Storage integration
-
-External stages
-
-File formats
-
-Snowpipes for curated & rejected data
-
-Snowpipe continuously loads new Delta files into Snowflake tables.
-
-▶️ How to Run
-
-Start Kafka Producer
-
-python kafka/producer.py
-
-Start Kafka Consumer API
-
-python kafka/consumer_api.py
-
-Trigger Airflow DAG
-Airflow UI → Trigger DAG → waits for data → runs Glue job.
-
-Check S3 Outputs
-
-s3://bucket/curated/
-s3://bucket/rejected/
-
-Check Snowflake Tables
-
+# Snowflake Tables
 SELECT * FROM LOGISTICS_CURATED_TABLE;
 SELECT * FROM LOGISTICS_REJECTED_TABLE;
-📸 Architecture Diagram
+```
 
-Refer to architecture_diagram.png
+---
 
-👤 Author
+## 📸 Architecture Diagram
 
+![Architecture](architecture_diagram.png)
+
+---
+
+## 👤 Author
 K Syed Khalid Hameed
+
+**K Syed Khalid Hameed**
