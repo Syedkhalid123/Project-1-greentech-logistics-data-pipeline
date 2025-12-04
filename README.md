@@ -126,8 +126,6 @@ greentech-logistics-data-pipeline/
 
 ```bash
 pip install kafka-python requests
-export KAFKA_BOOTSTRAP="<ec2-Public IPv4 address>"
-export AIRFLOW_API_BASE="http://<airflow-ec2-Public IPv4 address>:8080/api/v1"
 python kafka/producer_airflow_trigger.py
 ```
 
